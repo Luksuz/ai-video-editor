@@ -1,0 +1,6 @@
+.DS_Store
+
+.env
+venv
+output_videos
+__pycache__
