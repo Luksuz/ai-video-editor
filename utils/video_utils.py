@@ -163,7 +163,7 @@ def check_video_validity(video_path):
         ]
 
         result = subprocess.run(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=600
         )
 
         if result.returncode != 0:
@@ -247,7 +247,7 @@ def create_simple_video(output_path, duration, width=1920, height=1080):
             output_path,
         ]
 
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600)
 
         return os.path.exists(output_path) and os.path.getsize(output_path) > 0
     except Exception as e:
@@ -278,7 +278,7 @@ def get_video_duration(video_path):
         ]
 
         result = subprocess.run(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=600
         )
 
         if result.returncode == 0:
@@ -314,7 +314,7 @@ def get_audio_duration(audio_path):
         ]
 
         result = subprocess.run(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=600
         )
 
         if result.returncode == 0:

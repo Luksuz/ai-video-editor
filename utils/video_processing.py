@@ -97,7 +97,7 @@ def process_video_for_audio(
             ]
 
             subprocess.run(
-                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60
+                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600
             )
 
         elif ratio > 1:  # Target is longer than input
@@ -135,7 +135,7 @@ def process_video_for_audio(
                     check=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    timeout=60,
+                    timeout=600,
                 )
 
                 # Then use stream_loop which is more efficient than complex filters
@@ -165,7 +165,7 @@ def process_video_for_audio(
                     check=True,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    timeout=120,
+                    timeout=600,
                 )
 
                 # Clean up
@@ -203,7 +203,7 @@ def process_video_for_audio(
                 ]
 
                 # Increase timeout for longer videos
-                timeout_value = max(60, int(target_duration * 1.5))
+                timeout_value = max(600, int(target_duration * 1.5))
                 subprocess.run(
                     cmd,
                     check=True,
@@ -243,7 +243,7 @@ def process_video_for_audio(
             ]
 
             subprocess.run(
-                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60
+                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600
             )
 
         # Verify the output duration
@@ -273,7 +273,7 @@ def process_video_for_audio(
             ]
 
             subprocess.run(
-                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60
+                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600
             )
 
             # Clean up temp file
@@ -379,7 +379,7 @@ def combine_audio_video(video_path, audio_path, output_path):
                 ]
 
             # Increase timeout for longer videos
-            timeout_value = max(60, int(audio_duration * 1.5))
+            timeout_value = max(600, int(audio_duration * 1.5))
             subprocess.run(
                 cmd,
                 check=True,
@@ -418,7 +418,7 @@ def combine_audio_video(video_path, audio_path, output_path):
         ]
 
         # Increase timeout for longer videos
-        timeout_value = max(60, int(audio_duration * 1.5))
+        timeout_value = max(600, int(audio_duration * 1.5))
         subprocess.run(
             cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout_value
         )
@@ -547,7 +547,7 @@ def concatenate_videos_with_crossfade(video_paths, output_path, transition_durat
 
             # Run the command with a generous timeout
             total_duration = sum(get_video_duration(v) for v in batch_videos)
-            timeout_value = max(300, int(total_duration * 1.5))
+            timeout_value = max(600, int(total_duration * 1.5))
 
             try:
                 subprocess.run(

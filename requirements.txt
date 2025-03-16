@@ -7,7 +7,7 @@ supabase
 requests
 tqdm
 python-multipart
-agents  # Replace with the correct version if different
+openai-agents  # Replace with the correct version if different
 
 # Development dependencies
 pre-commit

@@ -260,7 +260,7 @@ async def process_audio_complete(
             import subprocess
 
             subprocess.run(
-                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60
+                cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600
             )
 
             # Verify the chunk was created
