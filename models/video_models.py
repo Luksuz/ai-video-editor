@@ -53,3 +53,21 @@ class VideoResponseWithStorage(BaseModel):
     processing_time: float = Field(..., description="Total processing time in seconds")
     success: bool = Field(..., description="Whether the processing was successful")
     message: str = Field("", description="Additional information or error message")
+
+
+class CustomVideoChunkRequest(BaseModel):
+    """Model for custom video processing request"""
+    custom_video_url: str = Field(..., description="URL to the custom video in Supabase storage")
+    chunk_video_url: str = Field(..., description="URL to the chunk video in Supabase storage that needs to be replaced")
+    video_id: str = Field(..., description="ID of the video record in the database")
+    chunk_index: int = Field(..., description="Index of the chunk being replaced")
+
+
+class CustomVideoResponse(BaseModel):
+    """Model for custom video processing response"""
+    video_url: str = Field(..., description="URL to the processed video")
+    processing_time: float = Field(..., description="Total processing time in seconds")
+    success: bool = Field(..., description="Whether the processing was successful")
+    message: str = Field("", description="Additional information or error message")
+
+
