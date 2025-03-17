@@ -11,15 +11,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def process_video_for_audio(input_path, output_path, target_duration, max_speed_change=1.5, target_width=1920, target_height=1080):
+def process_video_for_audio(input_path, output_path, target_duration, target_width=1920, target_height=1080):
     """
-    Process a video to match the target audio duration with minimal distortion
+    Process a video to match the target audio duration using only looping or cutting (no speed adjustment)
     
     Args:
         input_path (str): Path to the input video
         output_path (str): Path to the processed video
         target_duration (float): Target duration in seconds
-        max_speed_change (float): Maximum factor to speed up or slow down video
         target_width (int): Target width for the output video
         target_height (int): Target height for the output video
         
@@ -56,107 +55,34 @@ def process_video_for_audio(input_path, output_path, target_duration, max_speed_
         # Prepare scaling filter - simplified for speed
         scale_filter = f"scale={target_width}:{target_height}:force_original_aspect_ratio=decrease,pad={target_width}:{target_height}:(ow-iw)/2:(oh-ih)/2:black"
         
-        # Determine the best approach based on the ratio
-        if 1/max_speed_change <= ratio <= max_speed_change:
-            # We can adjust the speed within acceptable limits
-            logger.info(f"Adjusting video speed by factor of {ratio:.2f}")
+        if ratio > 1:  # Target is longer than input: LOOP the video
+            logger.info(f"Looping video to reach target duration of {target_duration:.2f}s")
             
-            # Use setpts filter to adjust speed
-            speed_filter = f"setpts={1/ratio}*PTS"
-            
-            # Combine with scaling filter
-            combined_filter = f"{scale_filter},{speed_filter}"
+            # Calculate how many times we need to loop
+            loop_count = int(ratio) + 1
             
             cmd = [
                 'ffmpeg',
+                '-stream_loop', str(loop_count - 1),  # -1 because we already have 1 copy
                 '-i', input_path,
-                '-vf', combined_filter,
+                '-vf', scale_filter,
+                '-t', str(target_duration),  # Limit to target duration
                 '-an',  # Remove audio
                 '-c:v', video_codec,
                 '-preset', preset,
                 '-pix_fmt', 'yuv420p',
                 '-threads', str(threads),
-                '-movflags', '+faststart',  # Optimize for streaming
                 '-y',
                 temp_output
             ]
             
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
+            # Increase timeout for longer videos
+            timeout_value = max(60, int(target_duration * 1.5))
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout_value)
             
-        elif ratio > 1:  # Target is longer than input
-            # For very long videos, use a different approach
-            if target_duration > 60 and ratio > 5:
-                logger.info(f"Long duration detected ({target_duration:.2f}s), using optimized approach")
-                
-                # Create a temporary file for the scaled video
-                scaled_video = input_path + ".scaled.mp4"
-                
-                # First, scale the video without changing speed (faster)
-                scale_cmd = [
-                    'ffmpeg',
-                    '-i', input_path,
-                    '-vf', scale_filter,
-                    '-an',  # Remove audio
-                    '-c:v', video_codec,
-                    '-preset', preset,
-                    '-pix_fmt', 'yuv420p',
-                    '-threads', str(threads),
-                    '-y',
-                    scaled_video
-                ]
-                
-                subprocess.run(scale_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
-                
-                # Then use stream_loop which is more efficient than complex filters
-                loop_cmd = [
-                    'ffmpeg',
-                    '-stream_loop', '-1',  # Loop indefinitely
-                    '-i', scaled_video,
-                    '-t', str(target_duration),  # Limit to target duration
-                    '-an',  # Remove audio
-                    '-c:v', video_codec,
-                    '-preset', preset,
-                    '-pix_fmt', 'yuv420p',
-                    '-threads', str(threads),
-                    '-y',
-                    temp_output
-                ]
-                
-                subprocess.run(loop_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
-                
-                # Clean up
-                if os.path.exists(scaled_video):
-                    os.remove(scaled_video)
-                
-            else:
-                # Loop the video to reach target duration
-                logger.info(f"Looping video to reach target duration")
-                
-                # Calculate how many times we need to loop
-                loop_count = int(ratio) + 1
-                
-                cmd = [
-                    'ffmpeg',
-                    '-stream_loop', str(loop_count - 1),  # -1 because we already have 1 copy
-                    '-i', input_path,
-                    '-vf', scale_filter,
-                    '-t', str(target_duration),  # Limit to target duration
-                    '-an',  # Remove audio
-                    '-c:v', video_codec,
-                    '-preset', preset,
-                    '-pix_fmt', 'yuv420p',
-                    '-threads', str(threads),
-                    '-y',
-                    temp_output
-                ]
-                
-                # Increase timeout for longer videos
-                timeout_value = max(60, int(target_duration * 1.5))
-                subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout_value)
-            
-        else:  # ratio < 1, Target is shorter than input
-            # Extract the most interesting segment
-            logger.info(f"Extracting segment from video")
+        else:  # ratio <= 1, Target is shorter than input: CUT the video
+            # Extract the most interesting segment from the middle
+            logger.info(f"Cutting video to match target duration of {target_duration:.2f}s")
             
             # Try to extract from the middle for more interesting content
             start_time = max(0, (input_duration - target_duration) / 2)
@@ -223,8 +149,7 @@ def process_video_for_audio(input_path, output_path, target_duration, max_speed_
 
 def combine_audio_video(video_path, audio_path, output_path):
     """
-    Combine a video file with an audio file
-    Optimized for maximum performance on Mac systems
+    Combine a video file with an audio file without changing video speed
     
     Args:
         video_path (str): Path to the video file
@@ -235,8 +160,7 @@ def combine_audio_video(video_path, audio_path, output_path):
         bool: True if successful
     """
     try:
-        # Disable hardware acceleration as it's causing issues
-        hw_accel = []
+        # Video codec settings
         video_codec = 'libx264'
         preset = 'ultrafast'
         
@@ -252,71 +176,29 @@ def combine_audio_video(video_path, audio_path, output_path):
         
         logger.info(f"Audio duration: {audio_duration:.2f}s, Video duration: {video_duration:.2f}s")
         
-        # Ensure the video is exactly the same length as the audio
+        # Make sure we're using the right approach based on durations
         if abs(video_duration - audio_duration) > 0.1:
-            logger.info(f"Adjusting video duration to match audio exactly")
-            temp_video = video_path + ".temp.mp4"
-            
-            if video_duration > audio_duration:
-                # Trim the video
-                cmd = [
-                    'ffmpeg',
-                    '-i', video_path,
-                    '-t', str(audio_duration),
-                    '-c:v', video_codec,
-                    '-preset', preset,
-                    '-pix_fmt', 'yuv420p',
-                    '-threads', str(threads),
-                    '-an',
-                    '-y',
-                    temp_video
-                ]
-            else:
-                # Loop the video if needed
-                cmd = [
-                    'ffmpeg',
-                    '-stream_loop', '10',  # Loop up to 10 times if needed
-                    '-i', video_path,
-                    '-t', str(audio_duration),
-                    '-c:v', video_codec,
-                    '-preset', preset,
-                    '-pix_fmt', 'yuv420p',
-                    '-threads', str(threads),
-                    '-an',
-                    '-y',
-                    temp_video
-                ]
-            
-            # Increase timeout for longer videos
-            timeout_value = max(60, int(audio_duration * 1.5))
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout_value)
-            video_path = temp_video
+            logger.info(f"Video duration ({video_duration:.2f}s) doesn't match audio duration ({audio_duration:.2f}s)")
+            logger.info(f"Video should have already been processed to match audio duration")
         
-        # Combine the video with the audio using re-encoding to ensure clean output
+        # Combine the video with the audio - just doing a direct combination without adjusting speed
         cmd = [
             'ffmpeg',
-            '-i', video_path,
-            '-i', audio_path,
-            '-map', '0:v',
-            '-map', '1:a',
-            '-c:v', video_codec,
-            '-preset', preset,
-            '-pix_fmt', 'yuv420p',
-            '-c:a', 'aac',
-            '-b:a', '192k',
-            '-shortest',  # Ensure output is only as long as the shortest input
-            '-threads', str(threads),
+            '-i', video_path,      # Video input
+            '-i', audio_path,      # Audio input
+            '-map', '0:v:0',       # Use video from first input
+            '-map', '1:a:0',       # Use audio from second input
+            '-c:v', 'copy',        # Copy video codec (no re-encoding)
+            '-c:a', 'aac',         # Audio codec
+            '-b:a', '192k',        # Audio bitrate
+            '-shortest',           # End when shortest input ends
             '-y',
             output_path
         ]
         
         # Increase timeout for longer videos
-        timeout_value = max(60, int(audio_duration * 1.5))
+        timeout_value = max(60, int(max(audio_duration, video_duration) * 1.5))
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout_value)
-        
-        # Clean up temporary file if it exists
-        if video_path.endswith('.temp.mp4') and os.path.exists(video_path):
-            os.remove(video_path)
         
         # Verify the output file exists and has content
         if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
